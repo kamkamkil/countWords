@@ -3,59 +3,48 @@
 #include <fstream>
 #include <String>
 #include <iostream>
-#include <set>
+#include <unordered_set>
 #include <vector>
 #include <thread>
 #include <filesystem>
+#include <future>
+
+using wordSet = std::unordered_set<std::string>;
 
 int countWordsPOC(std::string filePath)
 {
     std::fstream file;
     file.open(filePath);
-    std::set<std::string> set;
+    std::unordered_set<std::string> set;
     std::string word;
     char k;
-    while ((k = file.get()) != EOF)
+    while (std::getline(file,word,' '))
     {
-        if (k != ' ')
-        {
-            word += k;
-        }
-        else
-        {
-            set.insert(word);
-            word.clear();
-        }
+
+        set.insert(word);
+        std::cout << word << std::endl;
     }
     file.close();
     return set.size();
 }
 
-int singleThread(std::string filePath, int begin, int end)
+std::unordered_set<std::string> singleThread(std::string filePath, int begin, int end)
 {
     std::fstream file;
     file.open(filePath, std::ios_base::in);
-    std::set<std::string> set;
+    std::unordered_set<std::string> set;
     std::string word;
     char k;
     int pos = begin;
     file.seekg(begin, std::ios::beg);
-    while (pos < end && (k = file.get()) != EOF)
+    while (pos < end && std::getline(file,word,' '))
     {
-        pos++;
-        if (k != ' ')
-        {
-            word += k;
-        }
-        else
-        {
-            // std::cout << word << " ";
-            set.insert(word);
-            word.clear();
-        }
+        pos+=word.length();
+        set.insert(word);
+
     }
     file.close();
-    return set.size();
+    return set;
 }
 
 // todo check how many words can fit in 32gb
@@ -64,9 +53,7 @@ int countWordsThreads(std::string filePath, int threads)
     std::fstream file;
     file.open(filePath);
     file.seekg(0, std::ios::end);
-    // std::streamsize len = file.tellg();
     unsigned long len  = std::filesystem::file_size(filePath);
-    std::cout << "Plik ma dlugosc " << len << " bajtow\n";
     file.seekg(0);
     file.clear();
     unsigned long  lenForThread = len / threads;
@@ -87,17 +74,18 @@ int countWordsThreads(std::string filePath, int threads)
     }
     tPos.push_back({currentPos, len});
     file.close();
-    std::vector<std::thread> p;
+    std::vector<std::future<std::unordered_set<std::string>>> p{};
     for (auto &&t : tPos)
     {
         const int a = std::get<0>(t);
         const int b = std::get<1>(t);
-         p.push_back(std::thread(singleThread,  std::ref(filePath), std::ref(a), std::ref(b)));
+        p.push_back( std::async(&singleThread,  std::ref(filePath), a, b));
     }
+    wordSet set;
     for (auto &&k : p)
     {
-        k.join();
+        set.merge(k.get());
     }
 
-    return 0;
+    return set.size();
 }
