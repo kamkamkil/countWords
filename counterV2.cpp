@@ -10,8 +10,14 @@
 #include <future>
 
 using wordSet = std::unordered_set<std::string>;
-constexpr int BUFFER_SIZE = 128; // todo thing about this type
-std::unordered_set<std::string> singleThread(std::string filePath, int begin, int end)
+constexpr int BUFFER_SIZE = 1024; // todo thing about this type
+
+int loadBuffer(char* buffer,std::fstream* file)
+{
+    return file->read(&buffer[0], BUFFER_SIZE).gcount();
+}
+
+std::unordered_set<std::string> singleThreadV2(std::string filePath, int begin, int end)
 {
     std::fstream file;
     file.open(filePath, std::ios_base::in);
@@ -19,21 +25,22 @@ std::unordered_set<std::string> singleThread(std::string filePath, int begin, in
     std::string word;
     char k;
     int pos = begin;
-    char buffer[BUFFER_SIZE];
+    char buffer[2][BUFFER_SIZE];
+    bool currentBuffer = 0;
     file.seekg(begin, std::ios::beg);
-    bool flag = false; // todo change name
     int word_size = 0;
     int word_begin = 0;
     int word_count = 0;
+    int extracted = file.read(&buffer[currentBuffer][0], BUFFER_SIZE).gcount();
     std::string rest;
     while (pos < end)
     {
-        int extracted = file.read(&buffer[0], BUFFER_SIZE).gcount();
-        // std::cout << "buffor :\\" << std::string(buffer, BUFFER_SIZE) << "/" << std::endl;
+        auto future = std::async(&loadBuffer,buffer[!currentBuffer],&file);
+        // std::cout << "buffor :\\" << std::string(buffer[currentBuffer], BUFFER_SIZE) << "/" << std::endl;
         if (extracted != 0)
         {
             int starting = 0;
-            if (buffer[0] == ' ')
+            if (buffer[currentBuffer][0] == ' ')
             {
                 // std::cout << "word count: " << word_count << " pos : " << pos << " _word_: \\" << rest << "/ word size :" <<rest.size()<< std::endl;
                 //  std::cout << rest << ' ';
@@ -45,14 +52,14 @@ std::unordered_set<std::string> singleThread(std::string filePath, int begin, in
             }
             for (size_t i = starting; i < (pos + extracted < end ? extracted : end - pos); i++)
             {
-                if (buffer[i] != ' ')
+                if (buffer[currentBuffer][i] != ' ')
                 {
                     word_size++;
                 }
                 else
                 {
-                    word = std::string(rest + std::string(buffer + word_begin, word_size));
-                    auto w = set.insert(rest + std::string(buffer + word_begin, word_size));
+                    word = std::string(rest + std::string(buffer[currentBuffer] + word_begin, word_size));
+                    auto w = set.insert(rest + std::string(buffer[currentBuffer] + word_begin, word_size));
                     // pos += word_size;
                     // std::cout << "word count: " << word_count << " pos : " << pos << " -word-: \\" << word << "/ word size :" << word_size <<std::endl;
                     // std::cout << word << ' ';
@@ -64,20 +71,22 @@ std::unordered_set<std::string> singleThread(std::string filePath, int begin, in
             }
             if (word_size != 0)
             {
-                rest += std::string(buffer + word_begin, word_size);
+                rest += std::string(buffer[currentBuffer] + word_begin, word_size);
                 word_size = 0;
                 // std::cout << "rest =>" << rest << std::endl;
             }
         }
         pos += extracted;
         word_begin = 0;
+        extracted = future.get();
+        currentBuffer = !currentBuffer;
     }
     file.close();
     return set;
 }
 
 // todo check how many words can fit in 32gb
-int countWordsThreads(std::string filePath, int threads)
+int countWordsThreadsV2(std::string filePath, int threads)
 {
     std::fstream file;
     file.open(filePath);
@@ -95,10 +104,10 @@ int countWordsThreads(std::string filePath, int threads)
             currentPos--;
             file.seekg(-2, std::ios::cur);
         }
-        p.push_back(std::async(&singleThread, std::ref(filePath), startPos, currentPos));
+        p.push_back(std::async(&singleThreadV2, std::ref(filePath), startPos, currentPos));
         currentPos++;
     }
-    p.push_back(std::async(&singleThread, std::ref(filePath), currentPos, len));
+    p.push_back(std::async(&singleThreadV2, std::ref(filePath), currentPos, len));
 
     file.close();
     wordSet set;

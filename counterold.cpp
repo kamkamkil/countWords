@@ -28,20 +28,20 @@ int countWordsPOC(std::string filePath)
     return set.size();
 }
 
-std::unordered_set<std::string> singleThread(std::string filePath, int begin, int end)
+std::unordered_set<std::string> singleThread(std::string filePath, unsigned long begin, unsigned long end, int coreId)
 {
     std::fstream file;
     file.open(filePath, std::ios_base::in);
     std::unordered_set<std::string> set;
     std::string word;
     char k;
-    int pos = begin;
+    unsigned long pos = begin;
     file.seekg(begin, std::ios::beg);
     while (pos < end && std::getline(file,word,' '))
     {
         pos+=word.length();
         set.insert(word);
-
+        
     }
     file.close();
     return set;
@@ -52,13 +52,10 @@ int countWordsThreads(std::string filePath, int threads)
 {
     std::fstream file;
     file.open(filePath);
-    file.seekg(0, std::ios::end);
     unsigned long len  = std::filesystem::file_size(filePath);
-    file.seekg(0);
-    file.clear();
     unsigned long  lenForThread = len / threads;
     unsigned long  currentPos = 0;
-    std::vector<std::tuple<int, int>> tPos;
+    std::vector<std::future<std::unordered_set<std::string>>> p{}; // todo rename and make new type name or smth 
     for (size_t i = 0; i < threads - 1; i++)
     {
         unsigned long  startPos = currentPos;
@@ -69,18 +66,12 @@ int countWordsThreads(std::string filePath, int threads)
             currentPos--;
             file.seekg(-2, std::ios::cur);
         }
-        tPos.push_back({startPos, currentPos});
+        p.push_back( std::async(&singleThread,  std::ref(filePath), startPos, currentPos,i));
         currentPos++;
     }
-    tPos.push_back({currentPos, len});
+    p.push_back( std::async(&singleThread,  std::ref(filePath), currentPos, len,threads));
+
     file.close();
-    std::vector<std::future<std::unordered_set<std::string>>> p{};
-    for (auto &&t : tPos)
-    {
-        const int a = std::get<0>(t);
-        const int b = std::get<1>(t);
-        p.push_back( std::async(&singleThread,  std::ref(filePath), a, b));
-    }
     wordSet set;
     for (auto &&k : p)
     {

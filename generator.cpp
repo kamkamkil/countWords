@@ -66,7 +66,8 @@ std::optional<std::string> simpleGenerator(
         return {};
     }
     std::ofstream file;
-    file.open("smpGen" + std::to_string(amountOfRecurringWorlds) + std::to_string(amountOfEveryWord));
+    std::string fileName = "smpGen" + std::to_string(amountOfRecurringWorlds) + std::to_string(amountOfEveryWord) + "txt"; 
+    file.open(fileName);
     if (!file.is_open())
     {
         return {};
@@ -88,10 +89,10 @@ std::optional<std::string> simpleGenerator(
     }
 
     file.close();
-    return "smpGen" + std::to_string(amountOfRecurringWorlds) + std::to_string(amountOfEveryWord);
+    return fileName;
 }
 
-std::optional<std::pair<std::string, unsigned long>> semiRandomGenerator(int probability, unsigned long size, uint32_t seed)
+std::optional<std::pair<std::string, unsigned long>> semiRandomGenerator(int probability, unsigned long long size, uint32_t seed)
 {
     std::ofstream file;
     std::string fileName = "semiRand" + std::to_string(probability) + std::to_string(size);
