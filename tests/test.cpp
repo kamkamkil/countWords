@@ -15,6 +15,7 @@ TEST_CASE("small file single core", "[single-core]")
     {
         Counter c(filePath.value(), 1);
         REQUIRE(c.countWords() == distinctiveWords);
+        std::filesystem::remove(filePath.value());
     }
     else
     {
@@ -39,6 +40,7 @@ TEST_CASE("small file multi core", "[multi-core]")
         c.set_threads(16);
         c.clear_tree();
         REQUIRE(c.countWords() == distinctiveWords);
+        std::filesystem::remove(filePath.value());
     }
     else
     {
@@ -62,6 +64,7 @@ TEST_CASE("only spaces", "[multi-core][single-core]")
         c.set_threads(4);
         c.clear_tree();
         REQUIRE(c.countWords() == 0);
+        std::filesystem::remove("spaces.txt");
     }
 }
 
@@ -81,6 +84,7 @@ TEST_CASE("one big word", "[multi-core][single-core]")
         c.set_threads(4);
         c.clear_tree();
         REQUIRE(c.countWords() == 1);
+        std::filesystem::remove("oneWord.txt");
     }
 }
 
@@ -107,6 +111,7 @@ TEST_CASE("stability fast", "[multi-core]")
             c.clear_tree();
             REQUIRE(c.countWords() == distinctiveWords);
         }
+        std::filesystem::remove(filePath.value());
     }
     else
     {
@@ -124,6 +129,7 @@ TEST_CASE("multiple spaces", "[multi-core]")
         Counter c(filePath.value(), 2);
 
         REQUIRE(c.countWords() == distinctiveWords);
+        std::filesystem::remove(filePath.value());
     }
     else
     {
@@ -142,6 +148,7 @@ TEST_CASE("empty file", "[multi-core][single-core]")
     REQUIRE(c.countWords() == 0);
     c.set_threads(8);
     REQUIRE(c.countWords() == 0);
+    std::filesystem::remove("empty.txt");
 }
 TEST_CASE("fast benchmark core scaling", "[multi-core][single-core][!benchmark]")
 {
@@ -176,6 +183,7 @@ TEST_CASE("fast benchmark core scaling", "[multi-core][single-core][!benchmark]"
         {
             c.countWords();
         };
+        std::filesystem::remove(filePath.value());
     }
     else
     {
@@ -185,10 +193,34 @@ TEST_CASE("fast benchmark core scaling", "[multi-core][single-core][!benchmark]"
 
 TEST_CASE("1mb file", "[multi-core]")
 {
-    auto testFile = semiRandomGenerator(25, 1048576, Catch::Generators::Detail::getSeed());
+    auto testFile = semiRandomGenerator(25, 1024 * 1024, Catch::Generators::Detail::getSeed());
     if (testFile)
     {
-        Counter c(testFile.value().first, 1);
+        Counter c(testFile.value().first, 16);
         REQUIRE(c.countWords() == testFile.value().second);
+        std::filesystem::remove(testFile.value().first);
     }
 }
+
+TEST_CASE("100mb file", "[multi-core]")
+{
+    auto testFile = semiRandomGenerator(25, 1024 * 1024 * 100, Catch::Generators::Detail::getSeed());
+    if (testFile)
+    {
+        Counter c(testFile.value().first, 16);
+        REQUIRE(c.countWords() == testFile.value().second);
+        std::filesystem::remove(testFile.value().first);
+    }
+}
+
+TEST_CASE("1Gb_file", "[.][heavy][multi-core]")
+{
+    auto testFile = semiRandomGenerator(25, 1024 * 1024 * 1024, Catch::Generators::Detail::getSeed());
+    if (testFile)
+    {
+        Counter c(testFile.value().first, 16);
+        REQUIRE(c.countWords() == testFile.value().second);
+        // std::filesystem::remove(testFile.value().first);
+    }
+}
+
