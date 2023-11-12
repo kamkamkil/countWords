@@ -11,51 +11,52 @@
 #include <syncstream>
 class leaf
 {
-private:
 public:
     std::atomic<bool> eow;
-    std::mutex mutex;
-    std::mutex mutex2;
-    leaf *children[64];
-    leaf() : eow(false), children{nullptr} { a = 1; };
+    std::mutex eowMutex;
+    std::mutex addLetterMutex;
+    leaf *children[60];
+    leaf() : eow(false), children{nullptr} {};
     ~leaf();
-    int a;
 };
+
+leaf::~leaf()
+{
+    for (size_t i = 0; i < 60; i++)
+    {
+        delete children[i];
+    }
+}
+
+
+
 class Counter
 {
 private:
     int threadAmount;
     std::string filePath;
     leaf *root;
-    std::atomic<int> words;
-    void singleThread(std::string filePath, unsigned long begin, unsigned long end, int coreId);
+    std::atomic<int> wordsCount;
+    void singleThread(unsigned long begin, unsigned long end);
     void addWord(std::string word);
     int countWordsThreads();
 
 public:
     int countWords();
     void clear_tree();
-    Counter(std::string filePath, int threadAmount) : threadAmount(threadAmount), filePath(filePath), words(0) { root = new leaf; };
+    Counter(std::string filePath, int threadAmount) : threadAmount(threadAmount), filePath(filePath), wordsCount(0) { root = new leaf; };
     ~Counter()
     {
         delete root;
     };
     void set_threads(int t) { threadAmount = t; };
 
-private:
 };
 void Counter::clear_tree()
 {
     delete root;
     root = new leaf;
-    words = 0;
-}
-leaf::~leaf()
-{
-    for (size_t i = 0; i < 64; i++)
-    {
-        delete children[i];
-    }
+    wordsCount = 0;
 }
 void Counter::addWord(std::string word)
 {
@@ -67,7 +68,7 @@ void Counter::addWord(std::string word)
         {
             if (ptr->children[letter - 'A'] == nullptr)
             {
-                const std::lock_guard<std::mutex> lock(ptr->mutex);
+                const std::lock_guard<std::mutex> lock(ptr->addLetterMutex);
                 if (ptr->children[letter - 'A'] == nullptr)
                     ptr->children[letter - 'A'] = new leaf;
             }
@@ -77,13 +78,13 @@ void Counter::addWord(std::string word)
     if (!ptr->eow.load())
     {
         {
-            const std::lock_guard<std::mutex> lock(ptr->mutex);
+            const std::lock_guard<std::mutex> lock(ptr->eowMutex);
             if (!ptr->eow.load())
             {
                 ptr->eow.store(true);
             }
         }
-        words++;
+        wordsCount++;
     }
 }
 
@@ -109,7 +110,7 @@ int Counter::countWordsThreads()
         while (file.get() != ' ')
         {
             currentPos--;
-            if (file.seekg(-2, std::ios::cur))
+            if (!file.seekg(-2, std::ios::cur))
             {
                 addThread = false;
                 break;
@@ -117,24 +118,24 @@ int Counter::countWordsThreads()
         }
         if (addThread)
         {
-            threadPool.push_back(std::thread(&Counter::singleThread, this, std::ref(filePath), startPos, currentPos, i));
+            threadPool.push_back(std::thread(&Counter::singleThread, this, startPos, currentPos));
             currentPos++;
-        }else 
-        currentPos = 0;
-        
+        }
+        else
+            currentPos = 0;
     }
 
-    threadPool.push_back(std::thread(&Counter::singleThread, this, std::ref(filePath), currentPos, len, threadAmount));
+    threadPool.push_back(std::thread(&Counter::singleThread, this, currentPos, len));
     file.close();
     for (auto &&i : threadPool)
     {
         i.join();
     }
 
-    return words;
+    return wordsCount;
 }
 
-void Counter::singleThread(std::string filePath, unsigned long begin, unsigned long end, int coreId)
+void Counter::singleThread(unsigned long begin, unsigned long end)
 {
     std::fstream file;
     file.open(filePath, std::ios_base::in);
