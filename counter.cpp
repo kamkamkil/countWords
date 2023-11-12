@@ -1,5 +1,3 @@
-#pragma once
-
 #include <fstream>
 #include <String>
 #include <iostream>
@@ -8,84 +6,143 @@
 #include <thread>
 #include <filesystem>
 #include <future>
+#include <mutex>
+#include <atomic>
+#include <syncstream>
+class leaf
+{
+public:
+    std::atomic<bool> eow;
+    std::mutex eowMutex;
+    std::mutex addLetterMutex;
+    leaf *children[60];
+    leaf() : eow(false), children{nullptr} {};
+    ~leaf();
+};
 
-using wordSet = std::unordered_set<std::string>;
+leaf::~leaf()
+{
+    for (size_t i = 0; i < 60; i++)
+    {
+        delete children[i];
+    }
+}
 
-int countWordsPOC(std::string filePath)
+class Counter
+{
+private:
+    int threadAmount;
+    std::string filePath;
+    leaf *root;
+    std::atomic<int> wordsCount;
+    void singleThread(unsigned long begin, unsigned long end, int tId);
+    void addWord(std::string word);
+    int countWordsThreads();
+
+public:
+    int countWords();
+    void clear_tree();
+    Counter(std::string filePath, int threadAmount) : threadAmount(threadAmount), filePath(filePath), wordsCount(0) { root = new leaf; };
+    ~Counter()
+    {
+        delete root;
+    };
+    void set_threads(int t) { threadAmount = t; };
+
+};
+void Counter::clear_tree()
+{
+    delete root;
+    root = new leaf;
+    wordsCount = 0;
+}
+void Counter::addWord(std::string word)
+{
+    leaf *current = root;
+    if (word.length() == 0)
+        return;
+    for (auto &&letter : word)
+    {
+        {
+            if (current->children[letter - 'A'] == nullptr)
+            {
+                const std::lock_guard<std::mutex> lock(current->addLetterMutex);
+                if (current->children[letter - 'A'] == nullptr)
+                    current->children[letter - 'A'] = new leaf;
+            }
+        }
+        current = current->children[letter - 'A'];
+    }
+    if (!current->eow.load())
+    {
+        {
+            const std::lock_guard<std::mutex> lock(current->eowMutex);
+            if (!current->eow.load())
+            {
+                current->eow.store(true);
+                wordsCount++;
+            }
+        }
+    }
+}
+
+int Counter::countWords()
+{
+    return countWordsThreads();
+}
+
+int Counter::countWordsThreads()
 {
     std::fstream file;
     file.open(filePath);
-    std::unordered_set<std::string> set;
-    std::string word;
-    char k;
-    while (std::getline(file,word,' '))
+    unsigned long len = std::filesystem::file_size(filePath);
+    unsigned long lenForThread = len / threadAmount;
+    unsigned long currentPos = 0;
+    std::vector<std::thread> threadPool{};
+    for (size_t i = 0; i < threadAmount - 1; i++)
     {
-
-        set.insert(word);
-        std::cout << word << std::endl;
-    }
-    file.close();
-    return set.size();
-}
-
-std::unordered_set<std::string> singleThread(std::string filePath, int begin, int end)
-{
-    std::fstream file;
-    file.open(filePath, std::ios_base::in);
-    std::unordered_set<std::string> set;
-    std::string word;
-    char k;
-    int pos = begin;
-    file.seekg(begin, std::ios::beg);
-    while (pos < end && std::getline(file,word,' '))
-    {
-        pos+=word.length();
-        set.insert(word);
-
-    }
-    file.close();
-    return set;
-}
-
-// todo check how many words can fit in 32gb
-int countWordsThreads(std::string filePath, int threads)
-{
-    std::fstream file;
-    file.open(filePath);
-    file.seekg(0, std::ios::end);
-    unsigned long len  = std::filesystem::file_size(filePath);
-    file.seekg(0);
-    file.clear();
-    unsigned long  lenForThread = len / threads;
-    unsigned long  currentPos = 0;
-    std::vector<std::tuple<int, int>> tPos;
-    for (size_t i = 0; i < threads - 1; i++)
-    {
-        unsigned long  startPos = currentPos;
+        bool addThread = true;
+        unsigned long startPos = currentPos;
         currentPos += lenForThread;
         file.seekg(currentPos, std::ios::beg);
         while (file.get() != ' ')
         {
             currentPos--;
-            file.seekg(-2, std::ios::cur);
+            if (!file.seekg(-2, std::ios::cur))
+            {
+                addThread = false;
+                break;
+            }
         }
-        tPos.push_back({startPos, currentPos});
-        currentPos++;
-    }
-    tPos.push_back({currentPos, len});
-    file.close();
-    std::vector<std::future<std::unordered_set<std::string>>> p{};
-    for (auto &&t : tPos)
-    {
-        const int a = std::get<0>(t);
-        const int b = std::get<1>(t);
-        p.push_back( std::async(&singleThread,  std::ref(filePath), a, b));
-    }
-    wordSet set;
-    for (auto &&k : p)
-    {
-        set.merge(k.get());
+        if (addThread)
+        {
+            threadPool.push_back(std::thread(&Counter::singleThread, this, startPos, currentPos,i));
+            currentPos++;
+        }
+        else
+            currentPos = 0;
     }
 
-    return set.size();
+    threadPool.push_back(std::thread(&Counter::singleThread, this, currentPos, len,threadAmount));
+    file.close();
+    for (auto &&i : threadPool)
+    {
+        i.join();
+    }
+
+    return wordsCount;
+}
+
+void Counter::singleThread(unsigned long begin, unsigned long end , int tId)
+{
+    std::fstream file;
+    file.open(filePath, std::ios_base::in);
+    std::string word;
+    unsigned long pos = begin;
+    file.seekg(begin, std::ios::beg);
+    while (file.tellg() < end && std::getline(file, word, ' '))
+    {
+        addWord(word);
+    }
+    file.close();
 }
