@@ -1,11 +1,15 @@
+#pragma once
+
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <optional>
 //fixme after Z there are a couple of symbols 
 class Word
 {
 public:
     Word(/* args */) : word("A"){};
+    Word(std::string s) : word(s){};
     ~Word(){};
     void advance()
     {
@@ -52,26 +56,28 @@ private:
     }
 };
 
-// todo add error handling
-//  make it better
-int simpleGenerator(
-    unsigned long amountOfRecurringWorlds, unsigned long amountOfEveryWord)
+std::optional<std::string> simpleGenerator(
+    unsigned long amountOfRecurringWorlds, unsigned long amountOfEveryWord,std::string startingWord = "A" , int spaces = 1)
 {
     if (amountOfEveryWord < amountOfRecurringWorlds)
     {
-        return -1;
+        return {};
     }
     std::ofstream file;
     file.open("smpGen" + std::to_string(amountOfRecurringWorlds) + std::to_string(amountOfEveryWord));
+    if(!file.is_open())
+    {
+        return {};
+    }
     unsigned long amountOfRepetition = amountOfEveryWord / (amountOfRecurringWorlds - 1);
     unsigned long currentWord = 0;
-    Word word;
+    Word word(startingWord);
     for (size_t i = 0; i < amountOfRecurringWorlds; i++)
     {
         word.advance();
         for (size_t i = 0; i < amountOfRepetition; i++)
         {
-            file << word.word << ' ';
+            file << word.word << std::string(spaces,' ');
         }
     }
     for (size_t i = 0; i < amountOfEveryWord - (amountOfRecurringWorlds -1)*amountOfRepetition; i++)
@@ -80,5 +86,5 @@ int simpleGenerator(
     }
 
     file.close();
-    return 1;
+    return "smpGen" + std::to_string(amountOfRecurringWorlds) + std::to_string(amountOfEveryWord);
 }
