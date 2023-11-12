@@ -34,6 +34,7 @@ private:
 
 public:
     int countWords();
+    void clear_tree();
     Counter(std::string filePath, int threadAmount) : threadAmount(threadAmount), filePath(filePath), words(0) { root = new leaf; };
     ~Counter()
     {
@@ -43,7 +44,12 @@ public:
 
 private:
 };
-
+void Counter::clear_tree()
+{
+    delete root;
+    root = new leaf;
+    words = 0;
+}
 leaf::~leaf()
 {
     for (size_t i = 0; i < 64; i++)
@@ -54,6 +60,8 @@ leaf::~leaf()
 void Counter::addWord(std::string word)
 {
     leaf *ptr = root;
+    if (word.length() == 0)
+        return;
     for (auto &&letter : word)
     {
         {
