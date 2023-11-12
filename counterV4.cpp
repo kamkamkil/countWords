@@ -37,7 +37,7 @@ private:
     std::string filePath;
     leaf *root;
     std::atomic<int> wordsCount;
-    void singleThread(unsigned long begin, unsigned long end);
+    void singleThread(unsigned long begin, unsigned long end, int tId);
     void addWord(std::string word);
     int countWordsThreads();
 
@@ -60,28 +60,28 @@ void Counter::clear_tree()
 }
 void Counter::addWord(std::string word)
 {
-    leaf *ptr = root;
+    leaf *current = root;
     if (word.length() == 0)
         return;
     for (auto &&letter : word)
     {
         {
-            if (ptr->children[letter - 'A'] == nullptr)
+            if (current->children[letter - 'A'] == nullptr)
             {
-                const std::lock_guard<std::mutex> lock(ptr->addLetterMutex);
-                if (ptr->children[letter - 'A'] == nullptr)
-                    ptr->children[letter - 'A'] = new leaf;
+                const std::lock_guard<std::mutex> lock(current->addLetterMutex);
+                if (current->children[letter - 'A'] == nullptr)
+                    current->children[letter - 'A'] = new leaf;
             }
         }
-        ptr = ptr->children[letter - 'A'];
+        current = current->children[letter - 'A'];
     }
-    if (!ptr->eow.load())
+    if (!current->eow.load())
     {
         {
-            const std::lock_guard<std::mutex> lock(ptr->eowMutex);
-            if (!ptr->eow.load())
+            const std::lock_guard<std::mutex> lock(current->eowMutex);
+            if (!current->eow.load())
             {
-                ptr->eow.store(true);
+                current->eow.store(true);
             }
         }
         wordsCount++;
@@ -118,14 +118,14 @@ int Counter::countWordsThreads()
         }
         if (addThread)
         {
-            threadPool.push_back(std::thread(&Counter::singleThread, this, startPos, currentPos));
+            threadPool.push_back(std::thread(&Counter::singleThread, this, startPos, currentPos,i));
             currentPos++;
         }
         else
             currentPos = 0;
     }
 
-    threadPool.push_back(std::thread(&Counter::singleThread, this, currentPos, len));
+    threadPool.push_back(std::thread(&Counter::singleThread, this, currentPos, len,threadAmount));
     file.close();
     for (auto &&i : threadPool)
     {
@@ -135,17 +135,15 @@ int Counter::countWordsThreads()
     return wordsCount;
 }
 
-void Counter::singleThread(unsigned long begin, unsigned long end)
+void Counter::singleThread(unsigned long begin, unsigned long end , int tId)
 {
     std::fstream file;
     file.open(filePath, std::ios_base::in);
     std::string word;
-    char k;
     unsigned long pos = begin;
     file.seekg(begin, std::ios::beg);
-    while (pos < end && std::getline(file, word, ' '))
+    while (file.tellg() < end && std::getline(file, word, ' '))
     {
-        pos += word.length();
         addWord(word);
     }
     file.close();
