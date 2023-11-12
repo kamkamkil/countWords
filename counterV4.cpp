@@ -28,8 +28,6 @@ leaf::~leaf()
     }
 }
 
-
-
 class Counter
 {
 private:
@@ -82,9 +80,9 @@ void Counter::addWord(std::string word)
             if (!current->eow.load())
             {
                 current->eow.store(true);
+                wordsCount++;
             }
         }
-        wordsCount++;
     }
 }
 
