@@ -99,26 +99,34 @@ int Counter::countWordsThreads()
     unsigned long len = std::filesystem::file_size(filePath);
     unsigned long lenForThread = len / threadAmount;
     unsigned long currentPos = 0;
-    std::vector<std::thread> p{}; // todo rename and make new type name or smth
+    std::vector<std::thread> threadPool{};
     for (size_t i = 0; i < threadAmount - 1; i++)
     {
+        bool addThread = true;
         unsigned long startPos = currentPos;
         currentPos += lenForThread;
         file.seekg(currentPos, std::ios::beg);
         while (file.get() != ' ')
         {
             currentPos--;
-            file.seekg(-2, std::ios::cur);
+            if (file.seekg(-2, std::ios::cur))
+            {
+                addThread = false;
+                break;
+            }
         }
-        p.push_back(std::thread(&Counter::singleThread, this, std::ref(filePath), startPos, currentPos, i));
-        std::cout << "start " << startPos << "end " << currentPos << std::endl;
-        currentPos++;
+        if (addThread)
+        {
+            threadPool.push_back(std::thread(&Counter::singleThread, this, std::ref(filePath), startPos, currentPos, i));
+            currentPos++;
+        }else 
+        currentPos = 0;
+        
     }
-        std::cout << "start " << currentPos << "end " << len << std::endl;
 
-    p.push_back(std::thread(&Counter::singleThread, this, std::ref(filePath), currentPos, len, threadAmount));
+    threadPool.push_back(std::thread(&Counter::singleThread, this, std::ref(filePath), currentPos, len, threadAmount));
     file.close();
-    for (auto &&i : p)
+    for (auto &&i : threadPool)
     {
         i.join();
     }
@@ -128,7 +136,6 @@ int Counter::countWordsThreads()
 
 void Counter::singleThread(std::string filePath, unsigned long begin, unsigned long end, int coreId)
 {
-    // std::cout << "start thread : " << coreId << std::endl;
     std::fstream file;
     file.open(filePath, std::ios_base::in);
     std::string word;
