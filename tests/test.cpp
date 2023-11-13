@@ -1,10 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/generators/catch_generators_random.hpp>
-#include "../counterV4.cpp"
-#include "../generator.cpp"
 #include <filesystem>
 #include "../counter.cpp"
+#include "../generator.cpp"
 
 TEST_CASE("small file single core", "[single-core]")
 {
