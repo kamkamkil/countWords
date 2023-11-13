@@ -27,6 +27,11 @@ int main(int argc, char* argv[])
         return 0;
     }
     std::string filePath(argv[1]);
+    if(not std::filesystem::exists(filePath))
+    {
+        std::cout << "file :" << filePath << " does not exist" << std::endl;
+        return -1;
+    }
     bool quiet = false;
     int threadsAmount = std::thread::hardware_concurrency();
     for (size_t i = 2; i <= argc - 1; i++)
@@ -48,7 +53,7 @@ int main(int argc, char* argv[])
     Counter c(filePath,threadsAmount);
 
     auto amount = c.countWords();
-    if (!quiet)
+    if (not quiet)
     {
         std::cout << amount << std::endl;
     }
