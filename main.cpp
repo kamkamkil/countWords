@@ -1,9 +1,5 @@
 #include <iostream>
-#include "generator.cpp"
-// #include "counterV2.cpp"
-#include "counterV4.cpp"
-// #include "counter.cpp"
-// #include "counter.cpp"
+#include "counter.cpp"
 #include <thread>
 
 void usage()
