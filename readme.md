@@ -30,6 +30,20 @@ cmake --build . -t wordCounter  //to just build app
 
 ```
 
-### running test 
+## Tests and benchmarks 
 
-You can run test using `ctest`. To run Heavy tests or benchmark use binary tests and using appropriate tags : `test.exe [!benchmark]` 
+### Running test 
+
+To build just test use `cmake --build . -t test` You can run test using `ctest`. To run Heavy tests or benchmark use binary tests and using appropriate tags : `test.exe [!benchmark]`
+
+### Running benchmarks
+
+To just build benchmark use `cmake --build . -t benchmarks` by default only fast benchmarks will run (1Mb file), if you wish to run longer benchmark use:
+
+```
+[medium] for 254mb file 
+[heavy] for 1Gb files
+```
+by default every benchmark will run 100 times for bigger files that make take to long you can decrease it by using `--benchmark-samples` flag
+
+You can use flag `-N` if you wish not to delate test files after testing / benchmarking 

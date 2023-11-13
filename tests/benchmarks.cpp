@@ -1,8 +1,39 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/generators/catch_generators_random.hpp>
+#include <catch2/catch_session.hpp>
+#include <set>
 #include "../generator.cpp"
 #include "../counter.cpp"
+
+std::set<std::string> toDelate;
+
+int main(int argc, char *argv[])
+{
+    bool notDelateFiles = false;
+    Catch::Session session;
+
+    using namespace Catch::Clara;
+    auto cli = session.cli() | Opt(notDelateFiles)
+                                   ["-N"]["--no-delate"]("should files be deleted after testing");
+
+    session.cli(cli);
+
+    int returnCode = session.applyCommandLine(argc, argv);
+    if (returnCode != 0)
+        return returnCode;
+
+    auto failed = session.run();
+    if (!notDelateFiles)
+    {
+        for (auto &&file : toDelate)
+        {
+            std::filesystem::remove(file);
+        }
+    }
+
+    return failed;
+}
 
 void thread_scaling(unsigned long long size)
 {
@@ -40,6 +71,7 @@ void thread_scaling(unsigned long long size)
         };
         c.clear_tree();
         c.set_threads(4);
+        toDelate.insert(file.value().first);
     }
 }
 
@@ -55,6 +87,7 @@ void different_word_amount(unsigned long long size)
                 c.countWords();
             };
         }
+        toDelate.insert(file.value().first);
     }
     {
         auto file = semiRandomGenerator(75, size, Catch::Generators::Detail::getSeed());
@@ -66,6 +99,7 @@ void different_word_amount(unsigned long long size)
                 c.countWords();
             };
         }
+        toDelate.insert(file.value().first);
     }
 
     {
@@ -78,6 +112,7 @@ void different_word_amount(unsigned long long size)
                 c.countWords();
             };
         }
+        toDelate.insert(file.value().first);
     }
 
     {
@@ -90,6 +125,7 @@ void different_word_amount(unsigned long long size)
                 c.countWords();
             };
         }
+        toDelate.insert(file.value().first);
     }
 
     {
@@ -102,6 +138,7 @@ void different_word_amount(unsigned long long size)
                 c.countWords();
             };
         }
+        toDelate.insert(file.value().first);
     }
 }
 
