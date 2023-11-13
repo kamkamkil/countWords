@@ -154,7 +154,7 @@ TEST_CASE("multiple spaces", "[multi-core]")
 {
     int distinctiveWords = 100;
     int allWords = 201;
-    auto filePath = simpleGenerator(distinctiveWords, allWords, "A", 4);
+    auto filePath = simpleGenerator(distinctiveWords, allWords,"a", 4);
     if (filePath)
     {
         Counter c(filePath.value(), 2);

@@ -9,20 +9,21 @@
 #include <mutex>
 #include <atomic>
 #include <syncstream>
+constexpr size_t CHILDREN_TAB_SIZE = 26;
 class leaf
 {
 public:
-    bool eow;
+    bool eow = false;
     std::mutex eowMutex;
     std::mutex addLetterMutex;
-    leaf *children[60];
+    leaf *children[CHILDREN_TAB_SIZE];
     leaf() : eow(false), children{nullptr} {};
     ~leaf();
 };
 
 leaf::~leaf()
 {
-    for (size_t i = 0; i < 60; i++)
+    for (size_t i = 0; i < CHILDREN_TAB_SIZE; i++)
     {
         delete children[i];
     }
@@ -62,13 +63,13 @@ void Counter::addWord(std::string word)
         return;
     for (auto &&letter : word)
     {
-        if (current->children[letter - 'A'] == nullptr)
+        if (current->children[letter - 'a'] == nullptr)
         {
             const std::lock_guard<std::mutex> lock(current->addLetterMutex);
-            if (current->children[letter - 'A'] == nullptr)
-                current->children[letter - 'A'] = new leaf;
+            if (current->children[letter - 'a'] == nullptr)
+                current->children[letter - 'a'] = new leaf;
         }
-        current = current->children[letter - 'A'];
+        current = current->children[letter - 'a'];
     }
     if (not current->eow)
     {

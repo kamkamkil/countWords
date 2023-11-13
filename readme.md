@@ -2,7 +2,7 @@
 
 Program designed to count how many different words are in given file.
 
-Input: name of file (it is assumed that file consist only of letter a-z and A-Z)
+Input: name of file (it is assumed that file consist only of letter a-z)
 
 Output: amount of different words 
 

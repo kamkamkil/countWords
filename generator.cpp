@@ -9,14 +9,14 @@
 class Word
 {
 public:
-    Word(/* args */) : word("A"){};
+    Word(/* args */) : word("a"){};
     Word(std::string s) : word(s){};
     ~Word(){};
     void advance()
     {
         if (word.back() != 'z')
         {
-            advance_letter(word.back());
+            word.back()++;
         }
         else
         {
@@ -25,14 +25,14 @@ public:
             {
                 if (word[i] != 'z')
                 {
-                    advance_letter(word[i]);
+                    word[i]++;
                     sameLetter = false;
                     break;
                 }
             }
             if (sameLetter)
             {
-                word = std::string(word.length() + 1, 'A');
+                word = std::string(word.length() + 1, 'a');
             }
         }
     }
@@ -43,23 +43,10 @@ public:
     }
 
     std::string word;
-
-private:
-    void advance_letter(char &c)
-    {
-        if (c == 'Z')
-        {
-            c = 'a';
-        }
-        else
-        {
-            c++;
-        }
-    }
 };
 
 std::optional<std::string> simpleGenerator(
-    unsigned long amountOfRecurringWorlds, unsigned long amountOfEveryWord, std::string startingWord = "A", int spaces = 1)
+    unsigned long amountOfRecurringWorlds, unsigned long amountOfEveryWord, std::string startingWord = "a", int spaces = 1)
 {
     if (amountOfEveryWord < amountOfRecurringWorlds)
     {
